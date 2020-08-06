@@ -1,12 +1,6 @@
----
-title: "Masters Project Proposal: On the genomic variability of inbred animal models and implications for medical research"
-author: "Mark Ziemann"
-date: "`r Sys.Date()`"
-output:
-  html_document:
-    toc: true
-theme: cosmo
----
+# Master's research project proposal: _On the genomic variability of inbred animal models and implications for medical research_
+Mark Ziemann
+2020-08-06
 
 ## Supervisory team
 
