@@ -70,7 +70,7 @@ The candidate will participate in the group activities including weekly meeting.
 
 3. Jensen VS, Porsgaard T, Lykkesfeldt J, Hvid H. Rodent model choice has major impact on variability of standard preclinical readouts associated with diabetes and obesity research. Am J Transl Res. 2016 Aug 15;8(8):3574-84.
 
-4. Watkins-Chow DE, Pavan WJ. Genomic copy number and expression variation within the C57BL/6J inbred mouse strain. Genome Res. 2008 Jan;18(1):60-6. Freedman LP, Cockburn IM, Simcoe TS. The Economics of Reproducibility in Preclinical Research. PLoS Biol. 2015 Jun 9;13(6):e1002165. 
+4. Watkins-Chow DE, Pavan WJ. Genomic copy number and expression variation within the C57BL/6J inbred mouse strain. Genome Res. 2008 Jan;18(1):60-6. 
 
 5. Casellas J, Medrano JF. Within-generation mutation variance for litter size in
 inbred mice. Genetics. 2008 Aug;179(4):2147-55. 
