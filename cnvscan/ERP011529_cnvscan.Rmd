@@ -1,0 +1,278 @@
+---
+title: "CNVscan for ERP011529"
+author: "Mark Ziemann"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+theme: cosmo
+---
+
+## Intro
+
+Here we're doing an analysis to identify CNV using normalised reads counts across genomic windows.
+
+```{r,libs}
+
+library("cobs")
+library("quantreg")
+library("parallel")
+library("gplots")
+library("dplyr")
+library("kableExtra")
+
+```
+
+```{r,interpolate}
+
+interpolate_points<-function(row,dat,curve){
+  MY_X=dat[row,1]
+  MY_Y=dat[row,2]
+  VAL1=tail(which(curve[,1]<MY_X),1)
+  VAL2=VAL1+1
+  X <- curve[c(VAL1,VAL2),1]
+  Y <- curve[c(VAL1,VAL2),2]
+  INTERP_Y=approx(X,Y,xout=MY_X)$y
+  INTERP_Y
+}
+
+```
+
+## 1 Mbp bins
+
+Without any filtering.
+
+```{r,1mb1, fig.width = 8 ,fig.height = 8}
+
+x <- read.table("ERP011529.1e6_fmt.tsv",header=T,row.names=1)
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) = c("logMean","cv")
+Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
+Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
+pred <- data.frame(predict(Rbs.9))
+
+res <- mclapply(X=1:nrow(y),function(row) {
+  interpolate_points(row,y,pred)
+  },mc.cores=8)
+y$interpolated <- unlist(res)
+
+y$diff=y$cv-y$interpolated
+yy <- y[order(-y$diff),]
+yy <- head(yy,50)
+
+write.table(yy,file="ERP011529.1e6_regions.tsv")
+
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz<-x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+```
+
+Keeping autosomes only
+
+```{r,1mb2, fig.width = 8 ,fig.height = 8}
+
+x <- read.table("ERP011529.1e6_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) = c("logMean","cv")
+Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
+Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
+pred <- data.frame(predict(Rbs.9))
+
+res <- mclapply(X=1:nrow(y),function(row) {
+  interpolate_points(row,y,pred)
+  },mc.cores=8)
+y$interpolated <- unlist(res)
+
+y$diff=y$cv-y$interpolated
+yy <- y[order(-y$cv),]
+yy <- subset(yy,cv>0.3 & logMean > 0)
+
+write.table(yy,file="ERP011529.1e6_regions.tsv")
+
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz<-x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+```
+
+
+
+
+## 100 kbp bins
+
+```{r,100kbp1, fig.width = 8 ,fig.height = 8}
+
+x <- read.table("ERP011529.1e5_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) = c("logMean","cv")
+Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
+Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
+pred<-data.frame(predict(Rbs.9))
+
+res <- mclapply(X=1:nrow(y),function(row) {
+  interpolate_points(row,y,pred)
+  },mc.cores=8)
+y$interpolated <- unlist(res)
+
+y$diff=y$cv-y$interpolated
+yy <- y[order(-y$cv),]
+yy <- subset(yy,cv>0.4 & logMean > 0)
+
+write.table(yy,file="ERP011529.1e5_regions.tsv")
+
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz<-x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+```
+
+## 10 kbp bins
+
+```{r,10kbp1, fig.width = 8 ,fig.height = 8}
+
+x<-read.table("ERP011529.1e4_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x<-x[which(rowSums(x)>=10),]
+x<-sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd<-apply(x,1,sd)
+mean<-apply(x,1,mean)
+y<-data.frame(log10(mean),mysd/mean)
+colnames(y)=c("logMean","cv")
+#Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
+#Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
+#pred<-data.frame(predict(Rbs.9))
+#res <- mclapply(X=1:nrow(y),function(row) {
+#  interpolate_points(row,y,pred)
+#  },mc.cores=8)
+#y$interpolated <- unlist(res)
+#y$diff=y$cv-y$interpolated
+yy <- y[order(-y$cv),]
+yy <- subset(yy,cv>0.6 & logMean > 0)
+
+write.table(yy,file="ERP011529.1e4_regions.tsv")
+
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz<-x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+```
+
+## 1 kbp bins
+
+```{r,1kbp1, fig.width = 8 ,fig.height = 8, eval=TRUE}
+
+x<-read.table("ERP011529.1e3_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x<-x[which(rowSums(x)>=10),]
+x<-sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd<-apply(x,1,sd)
+mean<-apply(x,1,mean)
+y<-data.frame(log10(mean),mysd/mean)
+colnames(y)=c("logMean","cv")
+
+yy <- y[order(-y$cv),]
+yy <- subset(yy,cv>0.6 & logMean > 0)
+yy <- head(yy,50)
+
+write.table(yy,file="ERP011529.1e3_regions.tsv")
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz<-x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+```
+
+## Session information
+
+```{r,session}
+
+sessionInfo()
+
+```
