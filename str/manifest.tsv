@@ -1,0 +1,6 @@
+sample1	case	SRX5884275.str_profile.json
+sample2	case	SRX5884276.str_profile.json
+sample3	case	SRX5884277.str_profile.json
+sample4	control	SRX5884278.str_profile.json
+sample5	control	SRX5884279.str_profile.json
+sample6	control	SRX5884280.str_profile.json
