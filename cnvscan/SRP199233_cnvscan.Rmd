@@ -48,7 +48,7 @@ x <- sweep(x, 2, colSums(x), FUN="/")*1000000
 mysd <- apply(x,1,sd)
 mean <- apply(x,1,mean)
 y <- data.frame(log10(mean),mysd/mean)
-colnames(y) = c("logMean","cv")
+colnames(y) <- c("logMean","cv")
 Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
 Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
 pred <- data.frame(predict(Rbs.9))
@@ -58,9 +58,9 @@ res <- mclapply(X=1:nrow(y),function(row) {
   },mc.cores=8)
 y$interpolated <- unlist(res)
 
-y$diff=y$cv-y$interpolated
-yy <- y[which(y$diff>0.05),]
-yy <- yy[order(-yy$diff),]
+y$diff <-  y$cv-y$interpolated
+yy <- y[order(-y$diff),]
+yy <- head(yy,50)
 
 write.table(yy,file="SRP199233.1e6_regions.tsv")
 
@@ -73,7 +73,7 @@ points(yy$logMean,yy$cv)
 text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
 
 my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
-zz<-x[which(rownames(x) %in% rownames(yy)),]
+zz <- x[which(rownames(x) %in% rownames(yy)),]
 heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
   cexCol=0.8,col=my_palette,scale="row")
 
@@ -82,30 +82,132 @@ heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
 
 ```
 
-## 100 kbp bins
+Now fixed up a bit.
 
-```{r,100kbp1, fig.width = 8 ,fig.height = 8}
+```{r,1mb2, fig.width = 8 ,fig.height = 8}
 
-x<-read.table("SRP199233.1e5_fmt.tsv",header=T,row.names=1)
-x<-x[which(rowSums(x)>=10),]
-x<-sweep(x, 2, colSums(x), FUN="/")*1000000
-mysd<-apply(x,1,sd)
-mean<-apply(x,1,mean)
-y<-data.frame(log10(mean),mysd/mean)
-colnames(y)=c("logMean","cv")
+x <- read.table("SRP199233.1e6_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) <- c("logMean","cv")
 Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
 Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
-pred<-data.frame(predict(Rbs.9))
+pred <- data.frame(predict(Rbs.9))
 
 res <- mclapply(X=1:nrow(y),function(row) {
   interpolate_points(row,y,pred)
   },mc.cores=8)
 y$interpolated <- unlist(res)
 
-y$diff=y$cv-y$interpolated
-yy <- y[which(y$diff>0.05),]
-yy <- yy[order(-yy$diff),]
-yy <- head(yy,200)
+y$diff <- y$cv-y$interpolated
+yy <- y[order(-y$diff),]
+yy <- head(yy,50)
+
+write.table(yy,file="SRP199233.1e6_regions.tsv")
+
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
+lines(predict(Rbs.9), col = "red", lwd = 1.0)
+lines(predict(Rbs.median), col = "blue", lwd = 1.0)
+points(yy$logMean,yy$cv)
+#text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV",xlim=c(1,4.5),ylim=c(0,0.3))
+#lines(predict(Rbs.9), col = "red", lwd = 1.0)
+#lines(predict(Rbs.median), col = "blue", lwd = 1.0)
+points(yy$logMean,yy$cv)
+text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
+zz <- x[which(rownames(x) %in% rownames(yy)),]
+heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
+  cexCol=0.8,col=my_palette,scale="row")
+
+heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
+  cexRow=0.8, cexCol=0.8)
+
+for (i in 1:19){
+mychr=as.character(i)
+regex=paste("^",mychr,":",sep="")
+chr <- x[grep(regex,rownames(x)),]
+mymax = max(chr)
+plot(chr[,1], xaxt = "n", pch=19, col="gray",
+  ylim=c(0,mymax),ylab="RPM of 1Mbp bins of chr",main=mychr)
+axis(1, at=chr[,1], labels=rownames(chr), xlab="chr", las=1)
+points( chr[,1], xaxt = "n", las=1, pch=19, col="gray"  )
+points( chr[,2], xaxt = "n", las=1, pch=19, col="lightblue"  )
+points( chr[,3], xaxt = "n", las=1, pch=19, col="lightgreen"  )
+points( chr[,4], xaxt = "n", las=1, pch=19, col="pink" )
+points( chr[,5], xaxt = "n", las=1, pch=19, col="orange" )
+points( chr[,6], xaxt = "n", las=1, pch=19, col="black" )
+grid()
+}
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  mymedian <- median(rowMeans(chr))
+  mymax <- max(rowMeans(chr))
+  rat <- mymax / mymedian
+  return(c(mymax,mymedian,rat))
+})
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  top <- head(chr[order(-rowMeans(chr)),])
+  return(top)
+})
+
+```
+
+
+
+## 100 kbp bins
+
+```{r,100kbp1, fig.width = 8 ,fig.height = 8}
+
+x<-read.table("SRP199233.1e5_fmt.tsv",header=T,row.names=1)
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) <- c("logMean","cv")
+Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
+Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
+pred <- data.frame(predict(Rbs.9))
+
+res <- mclapply(X=1:nrow(y),function(row) {
+  interpolate_points(row,y,pred)
+  },mc.cores=8)
+y$interpolated <- unlist(res)
+
+y$diff <- y$cv-y$interpolated
+yy1 <- y[order(-y$diff),]
+yy1 <- head(yy,50)
+yy2 <- subset(y,logMean>2 & cv>0.05)
+yy <- rbind(yy1,yy2)
 
 write.table(yy,file="SRP199233.1e5_regions.tsv")
 
@@ -115,15 +217,56 @@ plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
 lines(predict(Rbs.9), col = "red", lwd = 1.0)
 lines(predict(Rbs.median), col = "blue", lwd = 1.0)
 points(yy$logMean,yy$cv)
+#text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV",xlim=c(1,4.5),ylim=c(0,0.35))
+lines(predict(Rbs.9), col = "red", lwd = 1.0)
+lines(predict(Rbs.median), col = "blue", lwd = 1.0)
+points(yy$logMean,yy$cv)
 text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
 
 my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
-zz<-x[which(rownames(x) %in% rownames(yy)),]
+zz <- x[which(rownames(x) %in% rownames(yy)),]
 heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
   cexCol=0.8,col=my_palette,scale="row")
 
 heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
   cexRow=0.8, cexCol=0.8)
+
+for (i in 1:19){
+mychr=as.character(i)
+regex=paste("^",mychr,":",sep="")
+chr <- x[grep(regex,rownames(x)),]
+mymax = max(chr)
+plot(chr[,1], xaxt = "n", pch=19, col="gray",
+  ylim=c(0,mymax),ylab="RPM of 100 kbp bins of chr",main=mychr)
+axis(1, at=chr[,1], labels=rownames(chr), xlab="chr", las=1)
+points( chr[,1], xaxt = "n", las=1, pch=19, col="gray"  )
+points( chr[,2], xaxt = "n", las=1, pch=19, col="lightblue"  )
+points( chr[,3], xaxt = "n", las=1, pch=19, col="lightgreen"  )
+points( chr[,4], xaxt = "n", las=1, pch=19, col="pink" )
+points( chr[,5], xaxt = "n", las=1, pch=19, col="orange" )
+points( chr[,6], xaxt = "n", las=1, pch=19, col="black" )
+grid()
+}
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  mymedian <- median(rowMeans(chr))
+  mymax <- max(rowMeans(chr))
+  rat <- mymax / mymedian
+  return(c(mymax,mymedian,rat))
+})
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  top <- head(chr[order(-rowMeans(chr)),])
+  return(top)
+})
 
 ```
 
@@ -132,25 +275,33 @@ heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
 ```{r,10kbp1, fig.width = 8 ,fig.height = 8}
 
 x<-read.table("SRP199233.1e4_fmt.tsv",header=T,row.names=1)
-x<-x[which(rowSums(x)>=10),]
-x<-sweep(x, 2, colSums(x), FUN="/")*1000000
-mysd<-apply(x,1,sd)
-mean<-apply(x,1,mean)
-y<-data.frame(log10(mean),mysd/mean)
-colnames(y)=c("logMean","cv")
+
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
+
+x <- x[which(rowSums(x)>=10),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) <- c("logMean","cv")
 Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
 Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
-pred<-data.frame(predict(Rbs.9))
+pred <- data.frame(predict(Rbs.9))
 
 res <- mclapply(X=1:nrow(y),function(row) {
   interpolate_points(row,y,pred)
   },mc.cores=8)
 y$interpolated <- unlist(res)
 
-y$diff=y$cv-y$interpolated
-yy <- y[which(y$diff>0.2),]
-yy <- yy[order(-yy$diff),]
-yy <- head(yy,200)
+y$diff <- y$cv-y$interpolated
+yy <- y[order(-y$diff),]
+yy1 <- head(yy,20)
+yy2 <- subset(y,logMean>1 & cv>0.05)
+yy <- rbind(yy1,yy2)
 
 write.table(yy,file="SRP199233.1e4_regions.tsv")
 
@@ -160,58 +311,134 @@ plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
 lines(predict(Rbs.9), col = "red", lwd = 1.0)
 lines(predict(Rbs.median), col = "blue", lwd = 1.0)
 points(yy$logMean,yy$cv)
-text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+#text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV",xlim=c(0,4.5),ylim=c(0,1))
+lines(predict(Rbs.9), col = "red", lwd = 1.0)
+lines(predict(Rbs.median), col = "blue", lwd = 1.0)
+points(yy$logMean,yy$cv)
+#text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
 
 my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
-zz<-x[which(rownames(x) %in% rownames(yy)),]
+zz <- x[which(rownames(x) %in% rownames(yy)),]
 heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
   cexCol=0.8,col=my_palette,scale="row")
 
 heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
   cexRow=0.8, cexCol=0.8)
+
+for (i in 1:19){
+mychr=as.character(i)
+regex=paste("^",mychr,":",sep="")
+chr <- x[grep(regex,rownames(x)),]
+mymax = max(chr)
+plot(chr[,1], xaxt = "n", pch=19, col="gray",
+  ylim=c(0,mymax),ylab="RPM of 10 kbp bins of chr",main=mychr)
+axis(1, at=chr[,1], labels=rownames(chr), xlab="chr", las=1)
+points( chr[,1], xaxt = "n", las=1, pch=19, col="gray"  )
+points( chr[,2], xaxt = "n", las=1, pch=19, col="lightblue"  )
+points( chr[,3], xaxt = "n", las=1, pch=19, col="lightgreen"  )
+points( chr[,4], xaxt = "n", las=1, pch=19, col="pink" )
+points( chr[,5], xaxt = "n", las=1, pch=19, col="orange" )
+points( chr[,6], xaxt = "n", las=1, pch=19, col="black" )
+grid()
+}
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  mymedian <- median(rowMeans(chr))
+  mymax <- max(rowMeans(chr))
+  rat <- mymax / mymedian
+  return(c(mymax,mymedian,rat))
+})
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  top <- head(chr[order(-rowMeans(chr)),])
+  return(top)
+})
 
 ```
 
 ## 1 kbp bins
 
-```{r,1kbp1, fig.width = 8 ,fig.height = 8, eval=FALSE}
+```{r,1kbp1, fig.width = 8 ,fig.height = 8, eval=TRUE}
 
-x<-read.table("SRP199233.1e3_fmt.tsv",header=T,row.names=1)
-x<-x[which(rowSums(x)>=10),]
-x<-sweep(x, 2, colSums(x), FUN="/")*1000000
-mysd<-apply(x,1,sd)
-mean<-apply(x,1,mean)
-y<-data.frame(log10(mean),mysd/mean)
-colnames(y)=c("logMean","cv")
-Rbs.9 <- cobs(y$logMean,y$cv, nknots=10,constraint="none",tau=0.99)
-Rbs.median <- cobs(y$logMean,y$cv,nknots=10,constraint="none",tau=0.5)
-pred<-data.frame(predict(Rbs.9))
+x <- read.table("SRP199233.1e3_fmt.tsv",header=T,row.names=1)
 
-res <- mclapply(X=1:nrow(y),function(row) {
-  interpolate_points(row,y,pred)
-  },mc.cores=8)
-y$interpolated <- unlist(res)
+x <- x[grep("X",rownames(x),invert=TRUE),]
+x <- x[grep("Y",rownames(x),invert=TRUE),]
+x <- x[grep("M",rownames(x),invert=TRUE),]
+x <- x[grep("J",rownames(x),invert=TRUE),]
+x <- x[grep("G",rownames(x),invert=TRUE),]
 
-y$diff=y$cv-y$interpolated
-yy <- y[which(y$diff>0.2),]
-yy <- yy[order(-yy$diff),]
-yy <- head(yy,200)
+x <- x[which(rowSums(x)>=6),]
+x <- sweep(x, 2, colSums(x), FUN="/")*1000000
+mysd <- apply(x,1,sd)
+mean <- apply(x,1,mean)
+y <- data.frame(log10(mean),mysd/mean)
+colnames(y) <- c("logMean","cv")
+
+yy <- subset(y,cv > 0.2 & logMean > 0.3)
 
 write.table(yy,file="SRP199233.1e3_regions.tsv")
 
+yy %>% kbl() %>% kable_paper("hover", full_width = F)
+
 plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV")
-lines(predict(Rbs.9), col = "red", lwd = 1.0)
-lines(predict(Rbs.median), col = "blue", lwd = 1.0)
+points(yy$logMean,yy$cv)
+#text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
+
+plot(y$logMean,y$cv,pch=18,cex=0.5,xlab="log10(mean)",ylab="CV",xlim=c(0,4.5),ylim=c(0,1))
 points(yy$logMean,yy$cv)
 text(yy$logMean,yy$cv+0.02,labels=rownames(yy),cex=0.8)
 
 my_palette <- colorRampPalette(c("blue", "white", "red"))(n = 25)
-zz<-x[which(rownames(x) %in% rownames(yy)),]
+zz <- x[which(rownames(x) %in% rownames(yy)),]
 heatmap.2(as.matrix(zz),margin=c(8, 22),cexRow=0.65,trace="none",
   cexCol=0.8,col=my_palette,scale="row")
 
 heatmap.2(cor(t(zz)),trace="none",scale="none",margins=c(12,12),
   cexRow=0.8, cexCol=0.8)
+
+for (i in 1:19){
+mychr=as.character(i)
+regex=paste("^",mychr,":",sep="")
+chr <- x[grep(regex,rownames(x)),]
+mymax = max(chr)
+plot(chr[,1], xaxt = "n", pch=19, col="gray",
+  ylim=c(0,mymax),ylab="RPM of 1 kbp bins of chr",main=mychr)
+axis(1, at=chr[,1], labels=rownames(chr), xlab="chr", las=1)
+points( chr[,1], xaxt = "n", las=1, pch=19, col="gray"  )
+points( chr[,2], xaxt = "n", las=1, pch=19, col="lightblue"  )
+points( chr[,3], xaxt = "n", las=1, pch=19, col="lightgreen"  )
+points( chr[,4], xaxt = "n", las=1, pch=19, col="pink" )
+points( chr[,5], xaxt = "n", las=1, pch=19, col="orange" )
+points( chr[,6], xaxt = "n", las=1, pch=19, col="black" )
+grid()
+}
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  mymedian <- median(rowMeans(chr))
+  mymax <- max(rowMeans(chr))
+  rat <- mymax / mymedian
+  return(c(mymax,mymedian,rat))
+})
+
+lapply(1:19,function(i){
+  mychr=as.character(i)
+  regex=paste("^",mychr,":",sep="")
+  chr <- x[grep(regex,rownames(x)),]
+  top <- head(chr[order(-rowMeans(chr)),])
+  return(top)
+})
 
 ```
 
